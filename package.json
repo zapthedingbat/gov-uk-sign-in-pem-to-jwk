@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Convert a PEM file containing the private key for signing token exchange in the GOV.UK Sign In service to a JWK format file.",
   "main": "./dist/index.js",
-  "private": true,
   "bin": {
     "pem-to-jwk": "./dist/index.js"
   },

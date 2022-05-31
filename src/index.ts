@@ -1,25 +1,8 @@
 #!/usr/bin/env node
+
+import { createPrivateKey } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
-import { webcrypto } from "crypto";
 import path from "node:path";
-
-const { importKey, exportKey } = (webcrypto as any).subtle as SubtleCrypto;
-
-function pemToBuffer(pem: string): Buffer {
-  const unwrapped = pem.replace(/-{5}(BEGIN|END).*-{5}/g, "");
-  return Buffer.from(unwrapped, "base64");
-}
-
-async function bufferToJsonWebKey(keyData: Buffer): Promise<JsonWebKey> {
-  const algorithm = {
-    name: "RSA-PSS",
-    hash: "SHA-256",
-  };
-  const cryptoKey = await importKey("pkcs8", keyData, algorithm, true, [
-    "sign",
-  ]);
-  return await exportKey("jwk", cryptoKey);
-}
 
 async function pemToJwk(argv: string[]): Promise<void> {
   let [, , pemFile, jwkFile] = argv;
@@ -40,13 +23,17 @@ async function pemToJwk(argv: string[]): Promise<void> {
   const pem = await readFile(pemFile, "utf-8");
 
   // Convert the PEM to a buffer
-  const keyData = pemToBuffer(pem);
+  const unwrapped = pem.replace(/-{5}(BEGIN|END).*-{5}/g, "");
+  const keyData = Buffer.from(unwrapped, "base64");
 
   // Convert the buffer to a JWK
-  const jsonWebKey = await bufferToJsonWebKey(keyData);
-
-  // Mark the JWK as used for signing
-  jsonWebKey.use = "sig";
+  const jsonWebKey = await createPrivateKey({
+    key: keyData,
+    type: "pkcs8",
+    format: "der",
+  }).export({
+    format: "jwk",
+  });
 
   // Write the JWK to a file
   await writeFile(jwkFile, JSON.stringify(jsonWebKey, null, 2));
